@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/style.css">
+  <title>Yuruitter</title>
+</head>
+
+<body>
+  <div id="wrapper">
+    <!-- 初回ポップアップ -->
+    <div class="overlay">
+      <div class="btn_area">
+        <p class="ttl">Welcome!</p>
+        <p>好きなアイコンを選んでください</p>
+        <div id="character_wrapper">
+        </div>
+        <label for="name">Name</label>
+        <input type="text" id="name">
+        <button id="start_btn">Start</button>
+      </div>
+    </div>
+
+    <!-- チャット画面 -->
+    <div id="chat_wrapper">
+      <header>
+        <h1>Yuruitter</h1>
+      </header>
+
+      <!-- 入力場所 -->
+      <div id="input_area">
+        <div id="input">
+          <div id="img_text_wrapper">
+            <img src="" alt="">
+            <textarea name="" id="text" cols="70" rows="5">What's happening?</textarea>
+          </div>
+          <button id="send">Post</button>
+        </div>
+      </div>
+
+      <!-- データ出力場所 -->
+      <div id="output_wrapper">
+        <div id="output">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js"></script>
+
+  <script>
+    // 日時をいい感じの形式にする関数
+    function convertFromFirestoreTimestampToDatetime(timestamp) {
+      const _d = timestamp ? new Date(timestamp * 1000) : new Date();
+      const Y = _d.getFullYear();
+      const m = (_d.getMonth() + 1).toString().padStart(2, '0');
+      const d = _d.getDate().toString().padStart(2, '0');
+      const H = _d.getHours().toString().padStart(2, '0');
+      const i = _d.getMinutes().toString().padStart(2, '0');
+      const s = _d.getSeconds().toString().padStart(2, '0');
+      return `${Y}/${m}/${d} ${H}:${i}:${s}`;
+    }
+  </script>
+
+  <!-- 以下にfirebaseのコードを貼り付けよう -->
+  <script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.1.0/firebase-app.js";
+    // TODO: Add SDKs for Firebase products that you want to use
+    // https://firebase.google.com/docs/web/setup#available-libraries
+
+    // ↓追加
+    import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, } from "https://www.gstatic.com/firebasejs/9.1.0/firebase-firestore.js";
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "",
+      authDomain: "chatapp01-210926.firebaseapp.com",
+      projectId: "chatapp01-210926",
+      storageBucket: "chatapp01-210926.appspot.com",
+      messagingSenderId: "759759332941",
+      appId: "1:759759332941:web:e710f9d7387071940b5e04"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+
+    // ↓追加
+    const db = getFirestore(app);
+
+    // ここから処理を記述
+    // 初回ポップアップ
+    // 画像の配列
+    const ImgList = [
+      { url: 'image/icon_01.png', title: '犬' },
+      { url: 'image/icon_02.png', title: 'イルカ' },
+      { url: 'image/icon_03.png', title: 'フラミンゴ' },
+      { url: 'image/icon_04.png', title: 'ワニ' },
+    ];
+    console.log(ImgList);
+
+    // 画像を表示
+    let output = '';
+    for (let i = 0; i < ImgList.length; i++) {
+      output += `<img src="${ImgList[i].url}" alt=""></img>`;
+      $('#character_wrapper').html(output);
+    };
+
+    $(function () {
+      $(".overlay").show();
+      $.cookie('btnFlg') == 'on' ? $(".overlay").hide() : $(".overlay").show();
+    });
+    $("#character_wrapper img").on('click', function () {
+      $(this).css("border", "2px solid #228b22");
+      $(this).css("border-radius", "5px");
+      const src = $(this).attr("src");
+      console.log(src);
+      $('#input_area img').attr("src", src);
+
+      $("#start_btn").on('click', function () {
+        $(".overlay").fadeOut();
+        $.cookie('btnFlg', 'on', { expires: 30, path: '/' }); //cookieの保存
+        $("#chat_wrapper").css('visibility', 'visible');
+      });
+
+      $('#send').on('click', function () {
+        alert('Done!');
+        // `db`が送信先 送信データはオブジェクトの形
+        addDoc(collection(db, 'chat01'), {
+          name: $('#name').val(),
+          text: $('#text').val(),
+          time: serverTimestamp(),
+          imgsrc: src,
+        });
+        // 送信後にtextareaを空にする処理
+        $('#text').val('');
+      });
+    });
+
+    // ↓まずデータ取得の条件を設定
+    const q = query(collection(db, 'chat01'), orderBy('time', 'desc'));
+    // ↓onSnapshotでcloud firestoreのデータ変更時に実行される! 
+    onSnapshot(q, (querySnapshot) => {
+      // querySnapshot.docsにcloud firestoreのデータが配列形式で入る 
+      const dataArray = []; // 必要なデータだけが入った新しい配列を作成 
+      querySnapshot.docs.forEach(function (doc) {
+        const data = {
+          id: doc.id,
+          data: doc.data(),
+        }
+        dataArray.push(data);
+        console.log(dataArray);
+      });
+
+      // ...前ページの続き 「`」で囲んでタグ文字列を表現.「${}」で変数を埋め込み 
+      const tagArray = []; // `dataArray`は前回出てきたオブジェクトの配列 
+      dataArray.forEach(function (data) {
+        const datetime = convertFromFirestoreTimestampToDatetime(data.data.timestamp);
+        tagArray.push(`
+          <div id=${data.id} class="output_content">
+          <img id="choiced_img" src="${data.data.imgsrc}" alt="">
+          <div id="output_right">
+          <p id="post_name">${data.data.name}</p>
+          <p id="post_time">${datetime}</p>
+          <p id="post_text">${data.data.text}</p>
+          <img id="comment_icon" alt="" src="image/コメントアイコン7.png"><img>
+          <img id="fav_icon" alt="" src="image/ハートのマーク2.png"><img>
+          </div> 
+          </div> 
+        `)
+      });
+      $('#output').html(tagArray.join(''));
+
+      $('#fav_icon').on('click', function () {
+        $(this).attr("src", "image/ハートのマーク.png");
+      });
+    });
+
+  </script>
+
+</body>
+
+</html>
