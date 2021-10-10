@@ -160,7 +160,8 @@
       // ...前ページの続き 「`」で囲んでタグ文字列を表現.「${}」で変数を埋め込み 
       const tagArray = []; // `dataArray`は前回出てきたオブジェクトの配列 
       dataArray.forEach(function (data) {
-        const datetime = convertFromFirestoreTimestampToDatetime(data.data.timestamp);
+        const datetime = convertFromFirestoreTimestampToDatetime(data.data.time.seconds);
+        console.log(datetime);
         tagArray.push(`
           <div id=${data.id} class="output_content">
           <img id="choiced_img" src="${data.data.imgsrc}" alt="">
